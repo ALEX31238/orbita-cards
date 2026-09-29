@@ -175,6 +175,24 @@ const Store = {
 
     async load() {
         this.deck = await fetch("deck.json").then((r) => r.json());
+        this.applyDeck();
+    },
+
+    /// Свежая колода с сайта: новые карточки появляются сразу, без переустановки.
+    async refresh() {
+        try {
+            const fresh = await fetch("deck.json", { cache: "reload" }).then((r) => (r.ok ? r.json() : null));
+            if (!fresh || !Array.isArray(fresh.cards)) return false;
+            if (fresh.cards.length === this.deck.cards.length) return false;
+            this.deck = fresh;
+            this.applyDeck();
+            return true;
+        } catch {
+            return false;
+        }
+    },
+
+    applyDeck() {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
             try {
@@ -1147,6 +1165,10 @@ window.addEventListener("keydown", (event) => {
     Sky.start();
     await Store.load();
     show(homeScreen());
+    // Пока смотришь на главный экран, тихо проверяем, не добавились ли карточки.
+    Store.refresh().then((changed) => {
+        if (changed && !session) show(homeScreen());
+    });
     // На localhost (разработка) кэш только мешает: файлы меняются, а страница показывает старые.
     const isLocal = ["localhost", "127.0.0.1"].includes(location.hostname);
     if ("serviceWorker" in navigator && !isLocal) {
